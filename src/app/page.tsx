@@ -6,7 +6,7 @@ import Image from 'next/image';
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -103,11 +103,11 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="flex items-center justify-center w-screen h-screen bg-white dark:bg-black">
-      {/* Logo at top right */}
+    <main className="relative w-screen h-screen bg-white dark:bg-black overflow-hidden">
+      {/* Logo - Mobile: center top, Desktop: top right */}
       <button
         onClick={() => setShowOverlay(!showOverlay)}
-        className="absolute top-8 right-8 z-50 cursor-pointer hover:opacity-80 transition-opacity"
+        className="absolute top-8 left-1/2 -translate-x-1/2 md:left-auto md:right-8 md:translate-x-0 z-50 cursor-pointer hover:opacity-80 transition-opacity"
       >
         <Image
           src={showOverlay ? '/fivefivefivewhite_bar-8.png' : (isDarkMode ? '/fivefivefivewhite_bar-8.png' : '/fivefivefiveblack_bar-8.png')}
@@ -167,23 +167,72 @@ export default function Home() {
         </div>
       )}
 
-      <div className="relative flex flex-col items-center">
-        {/* Video */}
-        <div className="relative">
+      {/* Desktop: Video centered with controls directly below */}
+      <div className="hidden md:flex items-center justify-center h-screen">
+        <div className="flex flex-col">
           <video
             ref={videoRef}
-            muted
             playsInline
             className="w-auto h-auto max-w-[60vw] max-h-[50vh]"
           >
             <source src="https://pub-69601e5d64b84c9db63cff92d061c0bc.r2.dev/fivefivefive.mp4" type="video/mp4" />
             Your browser does not support the video tag.
           </video>
-        </div>
 
-        {/* Bottom Controls */}
-        <div className="flex items-center justify-between w-full mt-3">
-          {/* Left Side */}
+          {/* Desktop Controls - Play/Time on left, Mute/Fullscreen on right */}
+          <div className="flex items-center justify-between w-full mt-3">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={togglePlay}
+                className={`px-3 py-1 text-sm border transition-all ${
+                  isPlaying 
+                    ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' 
+                    : 'text-black dark:text-white border-black/30 dark:border-white/30 hover:bg-black/5 dark:hover:bg-white/5'
+                }`}
+              >
+                {isPlaying ? 'Pause' : 'Play'}
+              </button>
+              <span className="text-black dark:text-white font-mono text-sm">
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={toggleMute}
+                className={`px-3 py-1 text-sm border transition-all ${
+                  !isMuted 
+                    ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' 
+                    : 'text-black dark:text-white border-black/30 dark:border-white/30 hover:bg-black/5 dark:hover:bg-white/5'
+                }`}
+              >
+                {isMuted ? 'Unmute' : 'Mute'}
+              </button>
+              <button
+                onClick={toggleFullScreen}
+                className="px-3 py-1 text-sm text-black dark:text-white border border-black/30 dark:border-white/30 hover:bg-black/5 dark:hover:bg-white/5 transition-all"
+              >
+                Full Screen
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile: Video centered with controls at bottom */}
+      <div className="md:hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+        <video
+          ref={videoRef}
+          playsInline
+          className="w-auto h-auto max-w-[90vw] max-h-[50vh]"
+        >
+          <source src="https://pub-69601e5d64b84c9db63cff92d061c0bc.r2.dev/fivefivefive.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+      </div>
+
+      {/* Mobile Controls - Fixed at bottom with time inline */}
+      <div className="md:hidden fixed left-0 right-0 flex flex-col items-center" style={{ bottom: '60px' }}>
+        <div className="flex items-center gap-3 mb-3">
           <button
             onClick={togglePlay}
             className={`px-3 py-1 text-sm border transition-all ${
@@ -194,29 +243,29 @@ export default function Home() {
           >
             {isPlaying ? 'Pause' : 'Play'}
           </button>
-
-          {/* Right Side */}
-          <div className="flex items-center gap-2">
-            <span className="text-black dark:text-white font-mono text-sm">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
-            <button
-              onClick={toggleMute}
-              className={`px-3 py-1 text-sm border transition-all ${
-                !isMuted 
-                  ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' 
-                  : 'text-black dark:text-white border-black/30 dark:border-white/30 hover:bg-black/5 dark:hover:bg-white/5'
-              }`}
-            >
-              {isMuted ? 'Unmute' : 'Mute'}
-            </button>
-            <button
-              onClick={toggleFullScreen}
-              className="px-3 py-1 text-sm text-black dark:text-white border border-black/30 dark:border-white/30 hover:bg-black/5 dark:hover:bg-white/5 transition-all"
-            >
-              Full Screen
-            </button>
-          </div>
+          <span className="text-black dark:text-white font-mono text-sm">
+            {formatTime(currentTime)} / {formatTime(duration)}
+          </span>
+        </div>
+        
+        {/* Second row: Mute and Fullscreen */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleMute}
+            className={`px-3 py-1 text-sm border transition-all ${
+              !isMuted 
+                ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' 
+                : 'text-black dark:text-white border-black/30 dark:border-white/30 hover:bg-black/5 dark:hover:bg-white/5'
+            }`}
+          >
+            {isMuted ? 'Unmute' : 'Mute'}
+          </button>
+          <button
+            onClick={toggleFullScreen}
+            className="px-3 py-1 text-sm text-black dark:text-white border border-black/30 dark:border-white/30 hover:bg-black/5 dark:hover:bg-white/5 transition-all"
+          >
+            Full Screen
+          </button>
         </div>
       </div>
     </main>
