@@ -1,103 +1,224 @@
-import Image from "next/image";
+'use client';
+
+import { useRef, useState, useEffect } from 'react';
+import Image from 'next/image';
 
 export default function Home() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(false);
+
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
+
+  const toggleFullScreen = () => {
+    if (videoRef.current) {
+      if (!document.fullscreenElement) {
+        videoRef.current.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(video.currentTime);
+    };
+
+    const handleLoadedMetadata = () => {
+      setDuration(video.duration);
+    };
+
+    const handleDurationChange = () => {
+      setDuration(video.duration);
+    };
+
+    const handleCanPlay = () => {
+      if (video.duration && !isNaN(video.duration)) {
+        setDuration(video.duration);
+      }
+    };
+
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('durationchange', handleDurationChange);
+    video.addEventListener('canplay', handleCanPlay);
+
+    // Also check if duration is already available
+    if (video.duration && !isNaN(video.duration)) {
+      setDuration(video.duration);
+    }
+
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('durationchange', handleDurationChange);
+      video.removeEventListener('canplay', handleCanPlay);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Check for dark mode
+    const checkDarkMode = () => {
+      const darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setIsDarkMode(darkMode);
+    };
+
+    checkDarkMode();
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setIsDarkMode(e.matches);
+    mediaQuery.addEventListener('change', handler);
+
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
+    <main className="flex items-center justify-center w-screen h-screen bg-white dark:bg-black">
+      {/* Logo at top right */}
+      <button
+        onClick={() => setShowOverlay(!showOverlay)}
+        className="absolute top-8 right-8 z-50 cursor-pointer hover:opacity-80 transition-opacity"
+      >
         <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
+          src={showOverlay ? '/fivefivefivewhite_bar-8.png' : (isDarkMode ? '/fivefivefivewhite_bar-8.png' : '/fivefivefiveblack_bar-8.png')}
+          alt="555 Logo"
+          width={120}
+          height={40}
           priority
         />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+      </button>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      {/* Overlay */}
+      {showOverlay && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+          onClick={() => setShowOverlay(false)}
+        >
+          <div
+            className="absolute top-8 right-8 mt-16 text-white text-right max-w-md space-y-4"
+            onClick={(e) => e.stopPropagation()}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            <p className="text-sm leading-relaxed font-light">
+              FiveFiveFive is a studio that produces creative transformation by exploring and interacting with ideas, people, and spaces.
+            </p>
+            <p className="text-sm leading-relaxed font-light">
+              The studio creates environments for meaningful interaction, where collaboration and experimentation foster transformation.
+            </p>
+            <p className="text-sm leading-relaxed font-light">
+              Through their work, they bridge the gap between vision and reality, crafting experiences that inspire change.
+            </p>
+            <div className="flex flex-col items-end gap-2 mt-6 text-sm font-light">
+              <a
+                href="https://luma.com/fivefivefive?k=c&period=past"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/60 transition-colors"
+              >
+                Events
+              </a>
+              <a
+                href="https://www.instagram.com/fivefivefive_studio/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/60 transition-colors"
+              >
+                Instagram
+              </a>
+              <a
+                href="https://x.com/555studio_"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/60 transition-colors"
+              >
+                X
+              </a>
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      )}
+
+      <div className="relative flex flex-col items-center">
+        {/* Video */}
+        <div className="relative">
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            className="w-auto h-auto max-w-[60vw] max-h-[50vh]"
+          >
+            <source src="/DJI_20251005045950_0248_D_1.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        </div>
+
+        {/* Bottom Controls */}
+        <div className="flex items-center justify-between w-full mt-3">
+          {/* Left Side */}
+          <button
+            onClick={togglePlay}
+            className={`px-3 py-1 text-sm border transition-all ${
+              isPlaying 
+                ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' 
+                : 'text-black dark:text-white border-black/30 dark:border-white/30 hover:bg-black/5 dark:hover:bg-white/5'
+            }`}
+          >
+            {isPlaying ? 'Pause' : 'Play'}
+          </button>
+
+          {/* Right Side */}
+          <div className="flex items-center gap-2">
+            <span className="text-black dark:text-white font-mono text-sm">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </span>
+            <button
+              onClick={toggleMute}
+              className={`px-3 py-1 text-sm border transition-all ${
+                !isMuted 
+                  ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' 
+                  : 'text-black dark:text-white border-black/30 dark:border-white/30 hover:bg-black/5 dark:hover:bg-white/5'
+              }`}
+            >
+              {isMuted ? 'Unmute' : 'Mute'}
+            </button>
+            <button
+              onClick={toggleFullScreen}
+              className="px-3 py-1 text-sm text-black dark:text-white border border-black/30 dark:border-white/30 hover:bg-black/5 dark:hover:bg-white/5 transition-all"
+            >
+              Full Screen
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
   );
 }
