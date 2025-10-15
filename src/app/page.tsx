@@ -176,7 +176,7 @@ export default function Home() {
             playsInline
             className="w-auto h-auto max-w-[60vw] max-h-[50vh]"
           >
-            <source src="/DJI_20251005045950_0248_D_1.mp4" type="video/mp4" />
+            <source src="https://pub-69601e5d64b84c9db63cff92d061c0bc.r2.dev/fivefivefive.mp4" type="video/mp4" />
             Your browser does not support the video tag.
           </video>
         </div>
