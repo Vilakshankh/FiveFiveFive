@@ -1,53 +1,50 @@
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 
 export default function Home() {
-  const desktopVideoRef = useRef<HTMLVideoElement>(null);
-  const mobileVideoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(false); // Start unmuted (sound on)
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  const getActiveVideoRef = () => {
-    return isMobile ? mobileVideoRef : desktopVideoRef;
-  };
-
-  const togglePlay = () => {
-    const videoRef = getActiveVideoRef();
+  const togglePlay = useCallback(() => {
     if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
       } else {
-        videoRef.current.play();
+        videoRef.current.play().catch((err: unknown) => {
+          console.error('Playback error:', err);
+        });
       }
       setIsPlaying(!isPlaying);
     }
-  };
+  }, [isPlaying]);
 
-  const toggleMute = () => {
-    const videoRef = getActiveVideoRef();
+  const toggleMute = useCallback(() => {
     if (videoRef.current) {
       videoRef.current.muted = !isMuted;
       setIsMuted(!isMuted);
     }
-  };
+  }, [isMuted]);
 
-  const toggleFullScreen = () => {
-    const videoRef = getActiveVideoRef();
+  const toggleFullScreen = useCallback(() => {
     if (videoRef.current) {
       if (!document.fullscreenElement) {
-        videoRef.current.requestFullscreen();
+        videoRef.current.requestFullscreen().catch((err: unknown) => {
+          console.error('Fullscreen error:', err);
+        });
       } else {
         document.exitFullscreen();
       }
     }
-  };
+  }, []);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -55,46 +52,66 @@ export default function Home() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Set mounted state on client side only
   useEffect(() => {
-    // Detect if mobile
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-
-    return () => window.removeEventListener('resize', checkMobile);
+    setMounted(true);
   }, []);
 
   useEffect(() => {
-    const video = isMobile ? mobileVideoRef.current : desktopVideoRef.current;
+    const video = videoRef.current;
     if (!video) return;
 
+    // Throttle time updates to reduce overhead
+    let lastUpdate = 0;
     const handleTimeUpdate = () => {
-      setCurrentTime(video.currentTime);
+      const now = Date.now();
+      if (now - lastUpdate > 100) { // Update max 10 times per second
+        setCurrentTime(video.currentTime);
+        lastUpdate = now;
+      }
     };
 
     const handleLoadedMetadata = () => {
-      setDuration(video.duration);
-    };
-
-    const handleDurationChange = () => {
-      setDuration(video.duration);
-    };
-
-    const handleCanPlay = () => {
       if (video.duration && !isNaN(video.duration)) {
         setDuration(video.duration);
       }
     };
 
+    const handlePlay = () => {
+      setIsPlaying(true);
+      setIsBuffering(false);
+    };
+
+    const handlePause = () => setIsPlaying(false);
+
+    // Critical: Monitor buffering for smooth playback
+    const handleWaiting = () => setIsBuffering(true);
+    const handleCanPlay = () => setIsBuffering(false);
+    const handleCanPlayThrough = () => setIsBuffering(false);
+    const handlePlaying = () => setIsBuffering(false);
+
+    // Track buffer progress for large video file (536MB)
+    const handleProgress = () => {
+      // Buffer progress tracking - can be used for progress bar if needed
+      if (video.buffered.length > 0 && video.duration) {
+        const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+        const percent = (bufferedEnd / video.duration) * 100;
+        // Available for future use: percent
+        console.debug('Buffer progress:', percent.toFixed(1) + '%');
+      }
+    };
+
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('durationchange', handleDurationChange);
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+    video.addEventListener('waiting', handleWaiting);
     video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('canplaythrough', handleCanPlayThrough);
+    video.addEventListener('playing', handlePlaying);
+    video.addEventListener('progress', handleProgress);
 
-    // Also check if duration is already available
+    // Check if duration is already available
     if (video.duration && !isNaN(video.duration)) {
       setDuration(video.duration);
     }
@@ -102,10 +119,15 @@ export default function Home() {
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('durationchange', handleDurationChange);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
+      video.removeEventListener('waiting', handleWaiting);
       video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('canplaythrough', handleCanPlayThrough);
+      video.removeEventListener('playing', handlePlaying);
+      video.removeEventListener('progress', handleProgress);
     };
-  }, [isMobile]);
+  }, []);
 
   useEffect(() => {
     // Check for dark mode
@@ -188,43 +210,57 @@ export default function Home() {
         </div>
       )}
 
-      {/* Desktop: Video centered with controls directly below */}
-      <div className="hidden md:flex items-center justify-center h-screen">
-        <div className="flex flex-col">
-          <video
-            ref={desktopVideoRef}
-            playsInline
-            preload="metadata"
-            className="w-auto h-auto max-w-[60vw] max-h-[50vh]"
-          >
-            <source src="https://ip5zzrvg9lf3mqev.public.blob.vercel-storage.com/fivefivefive.mp4" type="video/mp4" />
-            Your browser does not support the video tag.
-          </video>
+      {/* Unified Video Player - Responsive */}
+      <div className="flex items-center justify-center h-screen p-4">
+        <div className="flex flex-col w-full max-w-5xl relative">
+          <div className="relative w-full">
+            <video
+              ref={videoRef}
+              playsInline
+              preload="metadata"
+              className="w-full h-auto max-h-[60vh] md:max-h-[70vh] object-contain"
+            >
+              <source
+                src="https://ip5zzrvg9lf3mqev.public.blob.vercel-storage.com/fivefivefive.mp4"
+                type="video/mp4; codecs=avc1.42E01E,mp4a.40.2"
+              />
+              Your browser does not support the video tag.
+            </video>
 
-          {/* Desktop Controls - Play/Time on left, Mute/Fullscreen on right */}
-          <div className="flex items-center justify-between w-full mt-3">
+            {/* Buffering Indicator - Subtle */}
+            {isBuffering && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="bg-black/50 backdrop-blur-sm px-4 py-2 rounded text-white text-sm">
+                  Buffering...
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Responsive Controls - Stack on mobile, side-by-side on desktop */}
+          <div className="flex flex-col md:flex-row items-center justify-between w-full mt-4 gap-3 md:gap-0 px-2">
             <div className="flex items-center gap-3">
               <button
                 onClick={togglePlay}
                 className={`px-3 py-1 text-sm border transition-all ${
-                  isPlaying 
-                    ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' 
+                  isPlaying
+                    ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white'
                     : 'text-black dark:text-white border-black/30 dark:border-white/30 hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
               >
                 {isPlaying ? 'Pause' : 'Play'}
               </button>
-              <span className="text-black dark:text-white font-mono text-sm">
-                {formatTime(currentTime)} / {formatTime(duration)}
+              <span className="text-black dark:text-white font-mono text-sm" suppressHydrationWarning>
+                {mounted ? `${formatTime(currentTime)} / ${formatTime(duration)}` : '0:00 / 0:00'}
               </span>
             </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={toggleMute}
                 className={`px-3 py-1 text-sm border transition-all ${
-                  !isMuted 
-                    ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' 
-                    : 'text-black dark:text-white border-black/30 dark:border-white/30 hover:bg-black/5 dark:hover:bg-white/5'
+                  isMuted
+                    ? 'text-black dark:text-white border-black/30 dark:border-white/30 hover:bg-black/5 dark:hover:bg-white/5'
+                    : 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white'
                 }`}
               >
                 {isMuted ? 'Unmute' : 'Mute'}
@@ -237,58 +273,6 @@ export default function Home() {
               </button>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Mobile: Video centered with controls at bottom */}
-      <div className="md:hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-        <video
-          ref={mobileVideoRef}
-          playsInline
-          preload="metadata"
-          className="w-auto h-auto max-w-[90vw] max-h-[50vh]"
-        >
-          <source src="https://ip5zzrvg9lf3mqev.public.blob.vercel-storage.com/fivefivefive.mp4" type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
-      </div>
-
-      {/* Mobile Controls - Fixed at bottom with time inline */}
-      <div className="md:hidden fixed left-0 right-0 flex flex-col items-center" style={{ bottom: '60px' }}>
-        <div className="flex items-center gap-3 mb-3">
-          <button
-            onClick={togglePlay}
-            className={`px-3 py-1 text-sm border transition-all ${
-              isPlaying 
-                ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' 
-                : 'text-black dark:text-white border-black/30 dark:border-white/30 hover:bg-black/5 dark:hover:bg-white/5'
-            }`}
-          >
-            {isPlaying ? 'Pause' : 'Play'}
-          </button>
-          <span className="text-black dark:text-white font-mono text-sm">
-            {formatTime(currentTime)} / {formatTime(duration)}
-          </span>
-        </div>
-        
-        {/* Second row: Mute and Fullscreen */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={toggleMute}
-            className={`px-3 py-1 text-sm border transition-all ${
-              !isMuted 
-                ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' 
-                : 'text-black dark:text-white border-black/30 dark:border-white/30 hover:bg-black/5 dark:hover:bg-white/5'
-            }`}
-          >
-            {isMuted ? 'Unmute' : 'Mute'}
-          </button>
-          <button
-            onClick={toggleFullScreen}
-            className="px-3 py-1 text-sm text-black dark:text-white border border-black/30 dark:border-white/30 hover:bg-black/5 dark:hover:bg-white/5 transition-all"
-          >
-            Full Screen
-          </button>
         </div>
       </div>
     </main>

@@ -1,0 +1,23 @@
+{
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Accept-Ranges",
+          "value": "bytes"
+        },
+        {
+          "key": "X-DNS-Prefetch-Control",
+          "value": "on"
+        }
+      ]
+    }
+  ],
+  "regions": ["iad1", "sfo1", "lhr1", "hnd1"],
+  "functions": {
+    "app/**": {
+      "maxDuration": 10
+    }
+  }
+}
