@@ -221,7 +221,7 @@ export default function Home() {
               className="w-full h-auto max-h-[60vh] md:max-h-[70vh] object-contain"
             >
               <source
-                src="https://ip5zzrvg9lf3mqev.public.blob.vercel-storage.com/fivefivefive.mp4"
+                src="/fivefivefive.mp4"
                 type="video/mp4; codecs=avc1.42E01E,mp4a.40.2"
               />
               Your browser does not support the video tag.

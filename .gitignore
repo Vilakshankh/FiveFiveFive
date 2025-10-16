@@ -40,5 +40,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# large video files (hosted on CDN instead)
-/public/*.mp4
+# large video files now managed with Git LFS (see .gitattributes)
+# /public/*.mp4
