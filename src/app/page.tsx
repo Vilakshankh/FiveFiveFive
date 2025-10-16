@@ -4,15 +4,22 @@ import { useRef, useState, useEffect } from 'react';
 import Image from 'next/image';
 
 export default function Home() {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const desktopVideoRef = useRef<HTMLVideoElement>(null);
+  const mobileVideoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  const getActiveVideoRef = () => {
+    return isMobile ? mobileVideoRef : desktopVideoRef;
+  };
 
   const togglePlay = () => {
+    const videoRef = getActiveVideoRef();
     if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
@@ -24,6 +31,7 @@ export default function Home() {
   };
 
   const toggleMute = () => {
+    const videoRef = getActiveVideoRef();
     if (videoRef.current) {
       videoRef.current.muted = !isMuted;
       setIsMuted(!isMuted);
@@ -31,6 +39,7 @@ export default function Home() {
   };
 
   const toggleFullScreen = () => {
+    const videoRef = getActiveVideoRef();
     if (videoRef.current) {
       if (!document.fullscreenElement) {
         videoRef.current.requestFullscreen();
@@ -47,7 +56,19 @@ export default function Home() {
   };
 
   useEffect(() => {
-    const video = videoRef.current;
+    // Detect if mobile
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    const video = isMobile ? mobileVideoRef.current : desktopVideoRef.current;
     if (!video) return;
 
     const handleTimeUpdate = () => {
@@ -84,7 +105,7 @@ export default function Home() {
       video.removeEventListener('durationchange', handleDurationChange);
       video.removeEventListener('canplay', handleCanPlay);
     };
-  }, []);
+  }, [isMobile]);
 
   useEffect(() => {
     // Check for dark mode
@@ -171,11 +192,12 @@ export default function Home() {
       <div className="hidden md:flex items-center justify-center h-screen">
         <div className="flex flex-col">
           <video
-            ref={videoRef}
+            ref={desktopVideoRef}
             playsInline
+            preload="metadata"
             className="w-auto h-auto max-w-[60vw] max-h-[50vh]"
           >
-            <source src="https://pub-69601e5d64b84c9db63cff92d061c0bc.r2.dev/fivefivefive.mp4" type="video/mp4" />
+            <source src="https://ip5zzrvg9lf3mqev.public.blob.vercel-storage.com/fivefivefive.mp4" type="video/mp4" />
             Your browser does not support the video tag.
           </video>
 
@@ -221,11 +243,12 @@ export default function Home() {
       {/* Mobile: Video centered with controls at bottom */}
       <div className="md:hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
         <video
-          ref={videoRef}
+          ref={mobileVideoRef}
           playsInline
+          preload="metadata"
           className="w-auto h-auto max-w-[90vw] max-h-[50vh]"
         >
-          <source src="https://pub-69601e5d64b84c9db63cff92d061c0bc.r2.dev/fivefivefive.mp4" type="video/mp4" />
+          <source src="https://ip5zzrvg9lf3mqev.public.blob.vercel-storage.com/fivefivefive.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
       </div>
