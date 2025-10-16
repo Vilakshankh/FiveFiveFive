@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Set the workspace root to silence lockfile warning
+  outputFileTracingRoot: __dirname,
   async headers() {
     return [
       {
